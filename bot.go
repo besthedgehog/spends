@@ -1,0 +1,62 @@
+package main
+
+import (
+	"log"
+	"time"
+
+	tele "gopkg.in/telebot.v4"
+)
+
+type Bot struct {
+	bot      *tele.Bot
+	handlers *BotHandlers
+}
+
+func NewBot(token string, repo Repository) (*Bot, error) {
+	pref := tele.Settings{
+		Token:  token,
+		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
+	}
+
+	bot, err := tele.NewBot(pref)
+	if err != nil {
+		return nil, err
+	}
+
+	keyboards := NewKeyboards()
+	handlers := NewBotHandlers(repo, keyboards)
+
+	b := &Bot{
+		bot:      bot,
+		handlers: handlers,
+	}
+
+	b.registerHandlers()
+	return b, nil
+}
+
+func (b *Bot) registerHandlers() {
+	// Команды
+	b.bot.Handle("/start", b.handlers.HandleStart)
+	b.bot.Handle("/stats", b.handlers.HandleStats)
+	b.bot.Handle("/day", b.handlers.HandleDay)
+	b.bot.Handle("/month", b.handlers.HandleMonth)
+
+	// Категории
+	for btnText, category := range GetCategoryHandlers() {
+		b.bot.Handle(btnText, b.handlers.HandleCategory(category))
+	}
+
+	// Приоритеты
+	for btnText, priority := range GetPriorityHandlers() {
+		b.bot.Handle(btnText, b.handlers.HandlePriority(priority))
+	}
+
+	// Текстовые сообщения
+	b.bot.Handle(tele.OnText, b.handlers.HandleText)
+}
+
+func (b *Bot) Start() {
+	log.Println("🤖 Бот запущен...")
+	b.bot.Start()
+}
