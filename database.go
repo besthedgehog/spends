@@ -79,14 +79,6 @@ func (r *SQLiteRepository) GetUser(telegramID int64) (*User, error) {
 	return user, err
 }
 
-func (r *SQLiteRepository) SaveExpense(userID int64, state *UserState) error {
-	_, err := r.db.Exec(`
-		INSERT INTO expenses (user_id, name, amount, category, priority)
-		VALUES (?, ?, ?, ?, ?)
-	`, userID, state.Name, state.Amount, state.Category, state.Priority)
-	return err
-}
-
 func (r *SQLiteRepository) GetExpensesByDate(userID int64, date string) ([]Expense, error) {
 	rows, err := r.db.Query(`
 		SELECT id, user_id, name, amount, category, priority, created_at
@@ -232,4 +224,48 @@ func (r *SQLiteRepository) GetMonthCategoryStats(userID int64) (map[string]Categ
 
 func (r *SQLiteRepository) Close() error {
 	return r.db.Close()
+}
+
+// Обновляем функцию SaveExpense - теперь возвращает ID
+//
+// Для того, чтобы следующей кнопкной можно было отменить внесённую трату
+func (r *SQLiteRepository) SaveExpense(userID int64, state *UserState) (int, error) {
+	result, err := r.db.Exec(`
+		INSERT INTO expenses (user_id, name, amount, category, priority)
+		VALUES (?, ?, ?, ?, ?)
+	`, userID, state.Name, state.Amount, state.Category, state.Priority)
+
+	if err != nil {
+		return 0, err
+	}
+
+	id, err := result.LastInsertId()
+	return int(id), err
+}
+
+// Новый метод - удаление траты
+func (r *SQLiteRepository) DeleteExpense(expenseID int, userID int64) error {
+	_, err := r.db.Exec(`
+		DELETE FROM expenses
+		WHERE id = ? AND user_id = ?
+	`, expenseID, userID)
+	return err
+}
+
+// Новый метод - получение одной траты
+func (r *SQLiteRepository) GetExpense(expenseID int) (*Expense, error) {
+	expense := &Expense{}
+	err := r.db.QueryRow(`
+		SELECT id, user_id, name, amount, category, priority, created_at
+		FROM expenses WHERE id = ?
+	`, expenseID).Scan(
+		&expense.ID, &expense.UserID, &expense.Name,
+		&expense.Amount, &expense.Category, &expense.Priority,
+		&expense.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return expense, nil
 }

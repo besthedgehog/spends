@@ -52,6 +52,9 @@ func (b *Bot) registerHandlers() {
 		b.bot.Handle(btnText, b.handlers.HandlePriority(priority))
 	}
 
+	// Callback для отмены траты - регистрируем по префиксу
+	b.bot.Handle("\fundo_expense", b.handlers.HandleUndoExpense)
+
 	// Текстовые сообщения
 	b.bot.Handle(tele.OnText, b.handlers.HandleText)
 }

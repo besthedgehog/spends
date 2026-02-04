@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -178,7 +179,8 @@ func (h *BotHandlers) HandlePriority(priority int) tele.HandlerFunc {
 
 		state.Priority = priority
 
-		err := h.repo.SaveExpense(userID, state)
+		// Сохраняем и получаем ID траты
+		expenseID, err := h.repo.SaveExpense(userID, state)
 		if err != nil {
 			return c.Send("❌ Ошибка при сохранении: " + err.Error())
 		}
@@ -195,6 +197,103 @@ func (h *BotHandlers) HandlePriority(priority int) tele.HandlerFunc {
 
 		delete(h.userStates, userID)
 
-		return c.Send(message, RemoveKeyboard(), tele.ModeHTML)
+		// Отправляем с кнопкой отмены
+		return c.Send(message, UndoExpenseButton(expenseID), tele.ModeHTML)
 	}
+}
+
+// Новый обработчик - отмена траты
+func (h *BotHandlers) HandleUndoExpense(c tele.Context) error {
+	log.Println("🔍 HandleUndoExpense вызван")
+
+	// Проверяем, что это наш callback
+	if c.Callback() == nil {
+		log.Println("⚠️ Callback is nil")
+		return nil
+	}
+
+	callback := c.Callback()
+	log.Printf("📋 Callback Data: %s, Unique: %s", callback.Data, callback.Unique)
+
+	// Проверяем префикс (он в Unique!)
+	if callback.Unique != "undo_expense" {
+		log.Printf("⚠️ Неверный префикс: %s", callback.Unique)
+		return nil
+	}
+
+	// Получаем ID траты (он в Data!)
+	expenseIDStr := callback.Data
+	log.Printf("🆔 Expense ID string: %s", expenseIDStr)
+
+	expenseID, err := strconv.Atoi(expenseIDStr)
+	if err != nil {
+		log.Printf("❌ Ошибка парсинга ID: %v", err)
+		c.Respond(&tele.CallbackResponse{
+			Text:      "❌ Ошибка: неверный ID",
+			ShowAlert: false,
+		})
+		return nil
+	}
+
+	log.Printf("✅ Parsed expense ID: %d", expenseID)
+
+	userID := c.Sender().ID
+
+	// Проверяем, что трата принадлежит пользователю
+	expense, err := h.repo.GetExpense(expenseID)
+	if err != nil {
+		log.Printf("❌ Ошибка получения траты: %v", err)
+		c.Respond(&tele.CallbackResponse{
+			Text:      "❌ Трата не найдена",
+			ShowAlert: false,
+		})
+		return nil
+	}
+
+	log.Printf("📊 Expense found: %+v", expense)
+
+	if expense.UserID != userID {
+		log.Printf("❌ User mismatch: %d != %d", expense.UserID, userID)
+		c.Respond(&tele.CallbackResponse{
+			Text:      "❌ Это не твоя трата",
+			ShowAlert: true,
+		})
+		return nil
+	}
+
+	// Удаляем трату
+	err = h.repo.DeleteExpense(expenseID, userID)
+	if err != nil {
+		log.Printf("❌ Ошибка удаления: %v", err)
+		c.Respond(&tele.CallbackResponse{
+			Text:      "❌ Ошибка удаления",
+			ShowAlert: false,
+		})
+		return nil
+	}
+
+	log.Println("✅ Трата успешно удалена")
+
+	// Отвечаем на callback
+	c.Respond(&tele.CallbackResponse{
+		Text:      "✅ Трата удалена",
+		ShowAlert: false,
+	})
+
+	// Удаляем старое сообщение с кнопкой
+	err = c.Delete()
+	if err != nil {
+		log.Printf("⚠️ Не удалось удалить сообщение: %v", err)
+	}
+
+	// Отправляем новое сообщение об отмене
+	cancelMessage := fmt.Sprintf(
+		"🗑 <b>Трата отменена!</b>\n\n"+
+			"📝 %s - %.2f ₽\n"+
+			"📂 %s | 🎯 %d\n\n"+
+			"💡 Отправь следующую трату",
+		expense.Name, expense.Amount, expense.Category, expense.Priority,
+	)
+
+	return c.Send(cancelMessage, tele.ModeHTML)
 }

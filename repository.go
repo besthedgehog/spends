@@ -7,9 +7,11 @@ type Repository interface {
 	GetUser(telegramID int64) (*User, error)
 
 	// Расходы
-	SaveExpense(userID int64, state *UserState) error
+	SaveExpense(userID int64, state *UserState) (int, error) // Теперь возвращает ID
 	GetExpensesByDate(userID int64, date string) ([]Expense, error)
 	GetExpensesByMonth(userID int64) ([]Expense, error)
+	DeleteExpense(expenseID int, userID int64) error // Новый метод
+	GetExpense(expenseID int) (*Expense, error)      // Новый метод
 
 	// Статистика
 	GetStatistics(userID int64) (*Statistics, error)

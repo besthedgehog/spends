@@ -1,6 +1,10 @@
 package main
 
-import tele "gopkg.in/telebot.v4"
+import (
+	"fmt"
+
+	tele "gopkg.in/telebot.v4"
+)
 
 type Keyboards struct {
 	Category *tele.ReplyMarkup
@@ -56,6 +60,17 @@ func RemoveKeyboard() *tele.ReplyMarkup {
 	return &tele.ReplyMarkup{
 		RemoveKeyboard: true,
 	}
+}
+
+// UndoExpenseButton создаёт inline-кнопку для отмены траты
+func UndoExpenseButton(expenseID int) *tele.ReplyMarkup {
+	markup := &tele.ReplyMarkup{}
+	// Используем уникальный префикс для callback
+	btnUndo := markup.Data("❌ Отменить", "undo_expense", fmt.Sprintf("%d", expenseID))
+	markup.Inline(
+		markup.Row(btnUndo),
+	)
+	return markup
 }
 
 // GetCategoryHandlers возвращает мапу кнопок на категории
