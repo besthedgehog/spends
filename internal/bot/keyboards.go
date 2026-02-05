@@ -9,13 +9,14 @@ import (
 type Keyboards struct {
 	Category *tele.ReplyMarkup
 	Priority *tele.ReplyMarkup
+	Menu     *tele.ReplyMarkup // Новое меню
 }
 
 func NewKeyboards() *Keyboards {
-	// Клавиатура категорий
+	// Клавиатура категорий (появляется только после внесения траты)
 	categoryMenu := &tele.ReplyMarkup{
 		ResizeKeyboard:  true,
-		OneTimeKeyboard: true,
+		OneTimeKeyboard: true, // Скрывается после выбора
 	}
 
 	btnSnacks := categoryMenu.Text("🍿 Снеки")
@@ -50,9 +51,24 @@ func NewKeyboards() *Keyboards {
 		priorityMenu.Row(btn0, btn1, btn2),
 	)
 
+	// НОВОЕ: Главное меню (постоянная клавиатура)
+	mainMenu := &tele.ReplyMarkup{
+		ResizeKeyboard: true,
+	}
+
+	btnStats := mainMenu.Text("📊 Статистика")
+	btnExport := mainMenu.Text("📥 Экспорт")
+	btnCharts := mainMenu.Text("📈 Графики")
+
+	mainMenu.Reply(
+		mainMenu.Row(btnStats),
+		mainMenu.Row(btnExport, btnCharts),
+	)
+
 	return &Keyboards{
 		Category: categoryMenu,
 		Priority: priorityMenu,
+		Menu:     mainMenu,
 	}
 }
 
@@ -65,10 +81,52 @@ func RemoveKeyboard() *tele.ReplyMarkup {
 // UndoExpenseButton создаёт inline-кнопку для отмены траты
 func UndoExpenseButton(expenseID int) *tele.ReplyMarkup {
 	markup := &tele.ReplyMarkup{}
-	// Используем уникальный префикс для callback
 	btnUndo := markup.Data("❌ Отменить", "undo_expense", fmt.Sprintf("%d", expenseID))
 	markup.Inline(
 		markup.Row(btnUndo),
+	)
+	return markup
+}
+
+// НОВОЕ: Inline меню для статистики
+func StatisticsMenu() *tele.ReplyMarkup {
+	markup := &tele.ReplyMarkup{}
+
+	btnDay := markup.Data("📅 День", "stats", "day")
+	btnMonth := markup.Data("📆 Месяц", "stats", "month")
+	btnAll := markup.Data("📊 Всё время", "stats", "all")
+
+	markup.Inline(
+		markup.Row(btnDay, btnMonth),
+		markup.Row(btnAll),
+	)
+	return markup
+}
+
+// НОВОЕ: Inline меню для экспорта
+func ExportMenu() *tele.ReplyMarkup {
+	markup := &tele.ReplyMarkup{}
+
+	btnWeek := markup.Data("📅 Неделя", "export", "week")
+	btnMonth := markup.Data("📆 Месяц", "export", "month")
+	btnAll := markup.Data("📊 Всё время", "export", "all")
+
+	markup.Inline(
+		markup.Row(btnWeek, btnMonth),
+		markup.Row(btnAll),
+	)
+	return markup
+}
+
+// НОВОЕ: Inline меню для графиков
+func ChartsMenu() *tele.ReplyMarkup {
+	markup := &tele.ReplyMarkup{}
+
+	btnMonth := markup.Data("📆 Месяц", "charts", "month")
+	btnAll := markup.Data("📊 Всё время", "charts", "all")
+
+	markup.Inline(
+		markup.Row(btnMonth, btnAll),
 	)
 	return markup
 }

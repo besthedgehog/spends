@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+
 	"spends/internal/models"
 )
 
@@ -11,9 +12,9 @@ import (
 func ExportToCSV(expenses []models.Expense) ([]byte, error) {
 	var buf bytes.Buffer
 	writer := csv.NewWriter(&buf)
-	writer.Comma = ';' // Точка с запятой, как в твоём старом коде
+	writer.Comma = ';'
 
-	// Заголовки (без служебной информации)
+	// Заголовки
 	header := []string{"дата", "наименование", "сумма", "категория", "приоритет"}
 	if err := writer.Write(header); err != nil {
 		return nil, err
@@ -22,7 +23,7 @@ func ExportToCSV(expenses []models.Expense) ([]byte, error) {
 	// Данные
 	for _, e := range expenses {
 		record := []string{
-			e.CreatedAt.Format("02.01.2006"), // DD.MM.YYYY как в твоём CSV
+			e.CreatedAt.Format("02.01.2006"),
 			e.Name,
 			fmt.Sprintf("%.2f", e.Amount),
 			e.Category,

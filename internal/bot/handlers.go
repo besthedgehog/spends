@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	"spends/internal/charts"
 	"spends/internal/export"
 	"spends/internal/models"
 	"spends/internal/repository"
-	"strconv"
-	"strings"
-	"time"
 
 	tele "gopkg.in/telebot.v4"
 )
@@ -41,9 +43,96 @@ func (h *BotHandlers) HandleStart(c tele.Context) error {
 
 	return c.Send(
 		fmt.Sprintf("👋 Привет, %s!\n\nОтправь трату в формате:\n<b>Название Сумма</b>\n\nНапример: Кофе 135", firstName),
-		RemoveKeyboard(),
+		h.keyboards.Menu,
 		tele.ModeHTML,
 	)
+}
+
+func (h *BotHandlers) HandleStatsButton(c tele.Context) error {
+	log.Println("🎯 HandleStatsButton ВЫЗВАН!")
+	if err := c.Send("Выбери период:", StatisticsMenu()); err != nil {
+		return err
+	}
+
+	return c.Send("Отправь следующую трату", h.keyboards.Menu)
+
+}
+
+func (h *BotHandlers) HandleExportButton(c tele.Context) error {
+
+	if err := c.Send("Выбери период для экспорта:", ExportMenu()); err != nil {
+		return err
+	}
+
+	return c.Send("Отправь следующую трату", h.keyboards.Menu)
+}
+
+func (h *BotHandlers) HandleChartsButton(c tele.Context) error {
+
+	return h.GetAllCharts(c)
+}
+
+// НОВЫЕ обработчики inline кнопок
+
+func (h *BotHandlers) HandleInlineCallback(c tele.Context) error {
+	if c.Callback() == nil {
+		return nil
+	}
+
+	callback := c.Callback()
+
+	switch callback.Unique {
+	case "stats":
+		return h.handleStatsCallback(c, callback.Data)
+	case "export":
+		return h.handleExportCallback(c, callback.Data)
+	case "charts":
+		return h.handleChartsCallback(c, callback.Data)
+	}
+
+	return nil
+}
+
+// ФИК 2: Убрали неиспользуемую переменную
+func (h *BotHandlers) handleStatsCallback(c tele.Context, period string) error {
+	c.Respond(&tele.CallbackResponse{Text: "⏳ Загружаю..."})
+
+	switch period {
+	case "day":
+		return h.HandleDay(c)
+	case "month":
+		return h.HandleMonth(c)
+	case "all":
+		return h.HandleStats(c)
+	}
+	return nil
+}
+
+func (h *BotHandlers) handleExportCallback(c tele.Context, period string) error {
+	c.Respond(&tele.CallbackResponse{Text: "⏳ Создаю файл..."})
+
+	switch period {
+	case "week":
+		return h.HandleExportWeek(c)
+	case "month":
+		return h.HandleExportMonth(c)
+	case "all":
+		return h.HandleExportAll(c)
+	}
+	return nil
+}
+
+func (h *BotHandlers) handleChartsCallback(c tele.Context, period string) error {
+	c.Respond(&tele.CallbackResponse{Text: "⏳ Создаю графики..."})
+
+	return h.GetAllCharts(c)
+	// switch period {
+	// case "month":
+	// 	return h.HandleChartsMonth(c)
+	// case "all":
+	// 	return h.HandleChartsAll(c)
+	// }
+	// return nil
 }
 
 func (h *BotHandlers) HandleStats(c tele.Context) error {
@@ -60,12 +149,11 @@ func (h *BotHandlers) HandleStats(c tele.Context) error {
 			"📈 Месяц: %.2f ₽\n"+
 			"💼 Всего: %.2f ₽\n"+
 			"📝 Записей: %d\n\n"+
-			"Используй /day или /month для детальной статистики\n\n"+
 			"💡 Отправь следующую трату",
 		stats.TodayTotal, stats.WeekTotal, stats.MonthTotal, stats.TotalSum, stats.Count,
 	)
 
-	return c.Send(message, tele.ModeHTML)
+	return c.Send(message, h.keyboards.Menu, tele.ModeHTML) // ← Добавили меню
 }
 
 func (h *BotHandlers) HandleDay(c tele.Context) error {
@@ -76,7 +164,7 @@ func (h *BotHandlers) HandleDay(c tele.Context) error {
 	}
 
 	if len(expenses) == 0 {
-		return c.Send("📅 За сегодня трат пока нет\n\n💡 Отправь следующую трату")
+		return c.Send("📅 За сегодня трат пока нет\n\n💡 Отправь следующую трату", h.keyboards.Menu) // ← Добавили меню
 	}
 
 	var result strings.Builder
@@ -92,7 +180,7 @@ func (h *BotHandlers) HandleDay(c tele.Context) error {
 	}
 
 	result.WriteString(fmt.Sprintf("💰 <b>Итого: %.2f ₽</b> (%d трат)\n\n💡 Отправь следующую трату", total, len(expenses)))
-	return c.Send(result.String(), tele.ModeHTML)
+	return c.Send(result.String(), h.keyboards.Menu, tele.ModeHTML) // ← Добавили меню
 }
 
 func (h *BotHandlers) HandleMonth(c tele.Context) error {
@@ -103,7 +191,7 @@ func (h *BotHandlers) HandleMonth(c tele.Context) error {
 	}
 
 	if count == 0 {
-		return c.Send("📈 За этот месяц трат пока нет\n\n💡 Отправь следующую трату")
+		return c.Send("📈 За этот месяц трат пока нет\n\n💡 Отправь следующую трату", h.keyboards.Menu) // ← Добавили меню
 	}
 
 	var result strings.Builder
@@ -118,12 +206,39 @@ func (h *BotHandlers) HandleMonth(c tele.Context) error {
 	}
 
 	result.WriteString("\n💡 Добавь следующую трату")
-	return c.Send(result.String(), tele.ModeHTML)
+	return c.Send(result.String(), h.keyboards.Menu, tele.ModeHTML) // ← Добавили меню
 }
 
 func (h *BotHandlers) HandleText(c tele.Context) error {
 	text := c.Text()
 	userID := c.Sender().ID
+
+	// КРИТИЧЕСКИ ВАЖНО: Игнорируем кнопки меню
+	menuButtons := []string{"📊 Статистика", "📥 Экспорт", "📈 Графики"}
+	for _, btn := range menuButtons {
+		if text == btn {
+			log.Printf("⚠️ OnText проигнорировал кнопку меню: %s", text)
+			return nil // Пропускаем - обработается специфичным handler
+		}
+	}
+
+	// Игнорируем категории
+	for btnText := range GetCategoryHandlers() {
+		if text == btnText {
+			log.Printf("⚠️ OnText проигнорировал категорию: %s", text)
+			return nil
+		}
+	}
+
+	// Игнорируем приоритеты
+	for btnText := range GetPriorityHandlers() {
+		if text == btnText {
+			log.Printf("⚠️ OnText проигнорировал приоритет: %s", text)
+			return nil
+		}
+	}
+
+	log.Printf("📝 OnText обрабатывает: %s", text)
 
 	parts := strings.Fields(text)
 	if len(parts) < 2 {
@@ -185,7 +300,6 @@ func (h *BotHandlers) HandlePriority(priority int) tele.HandlerFunc {
 
 		state.Priority = priority
 
-		// Сохраняем и получаем ID траты
 		expenseID, err := h.repo.SaveExpense(userID, state)
 		if err != nil {
 			return c.Send("❌ Ошибка при сохранении: " + err.Error())
@@ -197,22 +311,23 @@ func (h *BotHandlers) HandlePriority(priority int) tele.HandlerFunc {
 				"💰 Сумма: %.2f ₽\n"+
 				"📂 Категория: %s\n"+
 				"🎯 Приоритет: %d\n\n"+
-				"Отправь следующую трату или /stats для статистики",
+				"Отправь следующую трату или используй меню ⬇️",
 			state.Name, state.Amount, state.Category, state.Priority,
 		)
 
 		delete(h.userStates, userID)
 
-		// Отправляем с кнопкой отмены
-		return c.Send(message, UndoExpenseButton(expenseID), tele.ModeHTML)
+		if err := c.Send(message, UndoExpenseButton(expenseID), tele.ModeHTML); err != nil {
+			return err
+		}
+
+		return c.Send("Используй меню ⬇️", h.keyboards.Menu)
 	}
 }
 
-// Новый обработчик - отмена траты
 func (h *BotHandlers) HandleUndoExpense(c tele.Context) error {
 	log.Println("🔍 HandleUndoExpense вызван")
 
-	// Проверяем, что это наш callback
 	if c.Callback() == nil {
 		log.Println("⚠️ Callback is nil")
 		return nil
@@ -221,13 +336,11 @@ func (h *BotHandlers) HandleUndoExpense(c tele.Context) error {
 	callback := c.Callback()
 	log.Printf("📋 Callback Data: %s, Unique: %s", callback.Data, callback.Unique)
 
-	// Проверяем префикс (он в Unique!)
 	if callback.Unique != "undo_expense" {
 		log.Printf("⚠️ Неверный префикс: %s", callback.Unique)
 		return nil
 	}
 
-	// Получаем ID траты (он в Data!)
 	expenseIDStr := callback.Data
 	log.Printf("🆔 Expense ID string: %s", expenseIDStr)
 
@@ -245,7 +358,6 @@ func (h *BotHandlers) HandleUndoExpense(c tele.Context) error {
 
 	userID := c.Sender().ID
 
-	// Проверяем, что трата принадлежит пользователю
 	expense, err := h.repo.GetExpense(expenseID)
 	if err != nil {
 		log.Printf("❌ Ошибка получения траты: %v", err)
@@ -267,7 +379,6 @@ func (h *BotHandlers) HandleUndoExpense(c tele.Context) error {
 		return nil
 	}
 
-	// Удаляем трату
 	err = h.repo.DeleteExpense(expenseID, userID)
 	if err != nil {
 		log.Printf("❌ Ошибка удаления: %v", err)
@@ -280,19 +391,16 @@ func (h *BotHandlers) HandleUndoExpense(c tele.Context) error {
 
 	log.Println("✅ Трата успешно удалена")
 
-	// Отвечаем на callback
 	c.Respond(&tele.CallbackResponse{
 		Text:      "✅ Трата удалена",
 		ShowAlert: false,
 	})
 
-	// Удаляем старое сообщение с кнопкой
 	err = c.Delete()
 	if err != nil {
 		log.Printf("⚠️ Не удалось удалить сообщение: %v", err)
 	}
 
-	// Отправляем новое сообщение об отмене
 	cancelMessage := fmt.Sprintf(
 		"🗑 <b>Трата отменена!</b>\n\n"+
 			"📝 %s - %.2f ₽\n"+
@@ -301,17 +409,20 @@ func (h *BotHandlers) HandleUndoExpense(c tele.Context) error {
 		expense.Name, expense.Amount, expense.Category, expense.Priority,
 	)
 
-	return c.Send(cancelMessage, tele.ModeHTML)
-}
+	// Отправляем сообщение
+	if err := c.Send(cancelMessage, tele.ModeHTML); err != nil {
+		return err
+	}
 
-// Добавь в конец файла handlers.go, в структуру BotHandlers
+	// ВАЖНО: Возвращаем главное меню
+	return c.Send("Используй меню:", h.keyboards.Menu)
+}
 
 // ===== ЭКСПОРТ CSV =====
 
 func (h *BotHandlers) HandleExportWeek(c tele.Context) error {
 	userID := c.Sender().ID
 
-	// Период: последние 7 дней
 	end := time.Now()
 	start := end.AddDate(0, 0, -7)
 
@@ -329,20 +440,23 @@ func (h *BotHandlers) HandleExportWeek(c tele.Context) error {
 		return c.Send("❌ Ошибка создания CSV: " + err.Error())
 	}
 
-	// Отправляем файл
 	doc := &tele.Document{
 		File:     tele.FromReader(bytes.NewReader(csvData)),
 		FileName: fmt.Sprintf("expenses_week_%s.csv", time.Now().Format("2006-01-02")),
 		MIME:     "text/csv",
 	}
 
-	return c.Send(doc)
+	if err := c.Send(doc); err != nil {
+		return err
+	}
+
+	return c.Send("Отправь следующую трату", h.keyboards.Menu)
+
 }
 
 func (h *BotHandlers) HandleExportMonth(c tele.Context) error {
 	userID := c.Sender().ID
 
-	// Период: текущий месяц
 	now := time.Now()
 	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	end := now
@@ -367,7 +481,12 @@ func (h *BotHandlers) HandleExportMonth(c tele.Context) error {
 		MIME:     "text/csv",
 	}
 
-	return c.Send(doc)
+	if err := c.Send(doc); err != nil {
+		return err
+	}
+
+	return c.Send("Отправь следующую трату", h.keyboards.Menu)
+
 }
 
 func (h *BotHandlers) HandleExportAll(c tele.Context) error {
@@ -393,50 +512,29 @@ func (h *BotHandlers) HandleExportAll(c tele.Context) error {
 		MIME:     "text/csv",
 	}
 
-	return c.Send(doc)
+	if err := c.Send(doc); err != nil {
+		return err
+	}
+
+	return c.Send("Отправь следующую трату", h.keyboards.Menu)
+
 }
 
-// ===== ГРАФИКИ =====
+func (h *BotHandlers) GetAllCharts(c tele.Context) error {
 
-func (h *BotHandlers) HandleChartsMonth(c tele.Context) error {
+	ChartsNames := struct {
+		CumulativeChart string
+		CategoryPie     string
+		PriorityPie     string
+		DailyBarChart   string
+	}{
+		CumulativeChart: "CumulativeChart.png",
+		CategoryPie:     "CategoryPie.png",
+		PriorityPie:     "PriorityPie.png",
+		DailyBarChart:   "DailyBarChart.png",
+	}
+
 	userID := c.Sender().ID
-
-	c.Send("⏳ Создаю графики за месяц...")
-
-	// Получаем траты за месяц
-	now := time.Now()
-	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	end := now
-
-	expenses, err := h.repo.GetExpensesByPeriod(userID, start, end)
-	if err != nil {
-		return c.Send("❌ Ошибка получения данных: " + err.Error())
-	}
-
-	if len(expenses) == 0 {
-		return c.Send("📭 За этот месяц трат нет")
-	}
-
-	// Генерируем HTML с графиками
-	htmlData, err := charts.GenerateMonthCharts(expenses)
-	if err != nil {
-		return c.Send("❌ Ошибка создания графиков: " + err.Error())
-	}
-
-	// Отправляем файл
-	doc := &tele.Document{
-		File:     tele.FromReader(bytes.NewReader(htmlData)),
-		FileName: fmt.Sprintf("charts_month_%s.html", time.Now().Format("2006-01")),
-		MIME:     "text/html",
-	}
-
-	return c.Send(doc)
-}
-
-func (h *BotHandlers) HandleChartsAll(c tele.Context) error {
-	userID := c.Sender().ID
-
-	c.Send("⏳ Создаю графики за всё время...")
 
 	expenses, err := h.repo.GetAllExpenses(userID)
 	if err != nil {
@@ -447,16 +545,29 @@ func (h *BotHandlers) HandleChartsAll(c tele.Context) error {
 		return c.Send("📭 У тебя пока нет трат")
 	}
 
-	htmlData, err := charts.GenerateAllTimeCharts(expenses)
-	if err != nil {
-		return c.Send("❌ Ошибка создания графиков: " + err.Error())
+	{
+		img1 := charts.CreateCumulativeChart(expenses)
+		img2 := charts.CreateCategoryPie(expenses)
+		img3 := charts.CreatePriorityPie(expenses)
+		img4 := charts.CreateDailyBarChart(expenses)
+
+		charts.RenderPNG(ChartsNames.CumulativeChart, img1)
+		charts.RenderPNG(ChartsNames.CategoryPie, img2)
+		charts.RenderPNG(ChartsNames.PriorityPie, img3)
+		charts.RenderPNG(ChartsNames.DailyBarChart, img4)
+
+		c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img1)), Caption: "📈 Накопление"})
+		c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img2)), Caption: "🥧 Категории"})
+		c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img3)), Caption: "🎯 Приоритеты"})
+		c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img4)), Caption: "📊 По дням"})
 	}
 
-	doc := &tele.Document{
-		File:     tele.FromReader(bytes.NewReader(htmlData)),
-		FileName: fmt.Sprintf("charts_all_%s.html", time.Now().Format("2006-01-02")),
-		MIME:     "text/html",
-	}
+	defer func() {
+		os.Remove(ChartsNames.CumulativeChart)
+		os.Remove(ChartsNames.CategoryPie)
+		os.Remove(ChartsNames.PriorityPie)
+		os.Remove(ChartsNames.DailyBarChart)
+	}()
 
-	return c.Send(doc)
+	return c.Send("Отправь следующую трату", h.keyboards.Menu)
 }

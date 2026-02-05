@@ -3,166 +3,188 @@ package charts
 import (
 	"bytes"
 	"fmt"
-	"io"
+	"os"
 	"sort"
 	"spends/internal/models"
+	"time"
 
-	"github.com/go-echarts/go-echarts/v2/charts"
-	"github.com/go-echarts/go-echarts/v2/components"
-	"github.com/go-echarts/go-echarts/v2/opts"
+	"github.com/wcharczuk/go-chart/v2"
+	"github.com/wcharczuk/go-chart/v2/drawing"
 )
 
-// GenerateMonthCharts создаёт HTML с графиками за месяц (все 4 графика)
-func GenerateMonthCharts(expenses []models.Expense) ([]byte, error) {
-	page := components.NewPage()
-	page.SetLayout(components.PageFlexLayout)
-
-	// 1. Круговая диаграмма: Категории
-	page.AddCharts(createCategoryPie(expenses, "Расходы по категориям (месяц)"))
-
-	// 2. Круговая диаграмма: Приоритеты
-	page.AddCharts(createPriorityPie(expenses, "Приоритеты (месяц)"))
-
-	// 3. Столбчатая диаграмма: Расходы по дням
-	page.AddCharts(createDailyBar(expenses))
-
-	// 4. Линейный график: Накопление
-	page.AddCharts(createCumulativeLine(expenses))
-
-	var buf bytes.Buffer
-	if err := page.Render(io.MultiWriter(&buf)); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
-// GenerateAllTimeCharts создаёт HTML с графиками за всё время (только круговые)
-func GenerateAllTimeCharts(expenses []models.Expense) ([]byte, error) {
-	page := components.NewPage()
-	page.SetLayout(components.PageFlexLayout)
-
-	page.AddCharts(createCategoryPie(expenses, "Расходы по категориям (всё время)"))
-	page.AddCharts(createPriorityPie(expenses, "Приоритеты (всё время)"))
-
-	var buf bytes.Buffer
-	if err := page.Render(io.MultiWriter(&buf)); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
-// Адаптация твоего кода
-
-func createCategoryPie(data []models.Expense, title string) *charts.Pie {
+func CreateCategoryPie(data []models.Expense) []byte {
 	sums := make(map[string]float64)
 	for _, e := range data {
 		sums[e.Category] += e.Amount
 	}
 
-	items := make([]opts.PieData, 0)
-	for k, v := range sums {
-		items = append(items, opts.PieData{Name: k, Value: v})
+	var values []chart.Value
+	for category, amount := range sums {
+		values = append(values, chart.Value{
+			Label: category,
+			Value: amount,
+		})
 	}
 
-	pie := charts.NewPie()
-	pie.SetGlobalOptions(charts.WithTitleOpts(opts.Title{Title: title}))
-	pie.AddSeries("Категории", items).SetSeriesOptions(
-		charts.WithLabelOpts(opts.Label{Show: opts.Bool(true), Formatter: "{b}: {c} ₽"}),
-	)
-	return pie
+	pie := chart.PieChart{
+		Title:  "Траты за период времени",
+		Width:  800,
+		Height: 600,
+		Values: values,
+	}
+
+	var buf bytes.Buffer
+	err := pie.Render(chart.PNG, &buf)
+	if err != nil {
+		panic(err)
+	}
+
+	return buf.Bytes()
 }
 
-func createPriorityPie(data []models.Expense, title string) *charts.Pie {
+func CreatePriorityPie(data []models.Expense) []byte {
 	sums := make(map[int]float64)
+
 	for _, e := range data {
 		sums[e.Priority] += e.Amount
 	}
 
-	items := make([]opts.PieData, 0)
-	labels := map[int]string{
-		0: "0: База (Зеленый)",
-		1: "1: Комфорт (Желтый)",
-		2: "2: Утечки (Красный)",
+	var values []chart.Value
+	for priority, amount := range sums {
+		values = append(values, chart.Value{
+			Label: fmt.Sprintf("Приоритет %d", priority-1), // Преобразуем int в string
+			Value: amount,
+		})
 	}
-
-	for k, v := range sums {
-		name := labels[k]
-		if name == "" {
-			name = fmt.Sprintf("Приоритет %d", k)
-		}
-		items = append(items, opts.PieData{Name: name, Value: v})
+	pie := chart.PieChart{
+		Title:  "Траты по приоритетам",
+		Width:  800,
+		Height: 600,
+		Values: values,
 	}
-
-	pie := charts.NewPie()
-	pie.SetGlobalOptions(charts.WithTitleOpts(opts.Title{Title: title}))
-	pie.AddSeries("Приоритеты", items).SetSeriesOptions(
-		charts.WithPieChartOpts(opts.PieChart{Radius: []string{"40%", "75%"}}),
-	)
-	return pie
+	var buf bytes.Buffer
+	err := pie.Render(chart.PNG, &buf)
+	if err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
 }
 
-func createDailyBar(data []models.Expense) *charts.Bar {
-	// Сортируем по дате
-	sort.Slice(data, func(i, j int) bool {
-		return data[i].CreatedAt.Before(data[j].CreatedAt)
-	})
-
-	daily := make(map[string]float64)
-	var dates []string
-
-	// Агрегация по дням
+// Столбчатая диаграмма: траты по дням
+func CreateDailyBarChart(data []models.Expense) []byte {
+	// Группируем траты по дням
+	dailySums := make(map[string]float64)
 	for _, e := range data {
-		d := e.CreatedAt.Format("02.01")
-		if _, exists := daily[d]; !exists {
-			dates = append(dates, d)
-		}
-		daily[d] += e.Amount
+		date := e.CreatedAt.Format("2006-01-02")
+		dailySums[date] += e.Amount
 	}
 
-	bar := charts.NewBar()
-	bar.SetGlobalOptions(charts.WithTitleOpts(opts.Title{Title: "Траты по дням"}))
+	// Сортируем даты
+	var dates []string
+	for date := range dailySums {
+		dates = append(dates, date)
+	}
+	sort.Strings(dates)
 
-	var values []opts.BarData
-	for _, d := range dates {
-		values = append(values, opts.BarData{Value: daily[d]})
+	// Создаем значения для графика
+	var bars []chart.Value
+	for _, date := range dates {
+		// Форматируем дату для отображения
+		t, _ := time.Parse("2006-01-02", date)
+		label := t.Format("02.01")
+
+		bars = append(bars, chart.Value{
+			Label: label,
+			Value: dailySums[date],
+		})
 	}
 
-	bar.SetXAxis(dates).AddSeries("Сумма", values)
-	return bar
+	barChart := chart.BarChart{
+		Title:    "Траты по дням",
+		Width:    800,
+		Height:   600,
+		Bars:     bars,
+		BarWidth: 60,
+	}
+
+	var buf bytes.Buffer
+	err := barChart.Render(chart.PNG, &buf)
+	if err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
 }
 
-func createCumulativeLine(data []models.Expense) *charts.Line {
-	// Сортируем по дате
-	sort.Slice(data, func(i, j int) bool {
-		return data[i].CreatedAt.Before(data[j].CreatedAt)
+// График накопления по дням
+func CreateCumulativeChart(data []models.Expense) []byte {
+	// Группируем траты по дням
+	dailySums := make(map[time.Time]float64)
+	for _, e := range data {
+		date := time.Date(e.CreatedAt.Year(), e.CreatedAt.Month(), e.CreatedAt.Day(), 0, 0, 0, 0, time.UTC)
+		dailySums[date] += e.Amount
+	}
+
+	// Сортируем даты
+	var dates []time.Time
+	for date := range dailySums {
+		dates = append(dates, date)
+	}
+	sort.Slice(dates, func(i, j int) bool {
+		return dates[i].Before(dates[j])
 	})
 
-	daily := make(map[string]float64)
-	var dates []string
+	// Создаем массивы для графика
+	var xValues []time.Time
+	var yValues []float64
+	cumulative := 0.0
 
-	for _, e := range data {
-		d := e.CreatedAt.Format("02.01")
-		if _, exists := daily[d]; !exists {
-			dates = append(dates, d)
-		}
-		daily[d] += e.Amount
+	for _, date := range dates {
+		cumulative += dailySums[date]
+		xValues = append(xValues, date)
+		yValues = append(yValues, cumulative)
 	}
 
-	line := charts.NewLine()
-	line.SetGlobalOptions(
-		charts.WithTitleOpts(opts.Title{Title: "Накопительный итог"}),
-		charts.WithTooltipOpts(opts.Tooltip{Show: opts.Bool(true), Trigger: "axis"}),
-	)
-
-	var cumValues []opts.LineData
-	currentSum := 0.0
-	for _, d := range dates {
-		currentSum += daily[d]
-		cumValues = append(cumValues, opts.LineData{Value: currentSum})
+	graph := chart.Chart{
+		Title:  "Накопление расходов по дням",
+		Width:  800,
+		Height: 600,
+		XAxis: chart.XAxis{
+			ValueFormatter: chart.TimeValueFormatterWithFormat("02.01"),
+		},
+		YAxis: chart.YAxis{},
+		Series: []chart.Series{
+			chart.TimeSeries{
+				Style: chart.Style{
+					StrokeColor: drawing.ColorBlue,
+					StrokeWidth: 2,
+				},
+				XValues: xValues,
+				YValues: yValues,
+			},
+		},
 	}
 
-	line.SetXAxis(dates).AddSeries("Всего потрачено", cumValues)
-	return line
+	var buf bytes.Buffer
+	err := graph.Render(chart.PNG, &buf)
+	if err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
+// RenderPNG принимает название диаграммы и набор байтов
+//
+// Сохраняет файл в png
+func RenderPNG(name string, buf []byte) {
+	f, err := os.Create(name)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	_, err = f.Write(buf)
+
+	if err != nil {
+		panic(err)
+	}
 }
