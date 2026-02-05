@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"spends/internal/models"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -269,4 +270,52 @@ func (r *SQLiteRepository) GetExpense(expenseID int) (*models.Expense, error) {
 		return nil, err
 	}
 	return expense, nil
+}
+
+func (r *SQLiteRepository) GetExpensesByPeriod(userID int64, start, end time.Time) ([]models.Expense, error) {
+	rows, err := r.db.Query(`
+		SELECT id, user_id, name, amount, category, priority, created_at
+		FROM expenses
+		WHERE user_id = ? AND created_at BETWEEN ? AND ?
+		ORDER BY created_at ASC
+	`, userID, start.Format("2006-01-02 00:00:00"), end.Format("2006-01-02 23:59:59"))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var expenses []models.Expense
+	for rows.Next() {
+		var e models.Expense
+		err := rows.Scan(&e.ID, &e.UserID, &e.Name, &e.Amount, &e.Category, &e.Priority, &e.CreatedAt)
+		if err != nil {
+			continue
+		}
+		expenses = append(expenses, e)
+	}
+	return expenses, nil
+}
+
+func (r *SQLiteRepository) GetAllExpenses(userID int64) ([]models.Expense, error) {
+	rows, err := r.db.Query(`
+		SELECT id, user_id, name, amount, category, priority, created_at
+		FROM expenses
+		WHERE user_id = ?
+		ORDER BY created_at ASC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var expenses []models.Expense
+	for rows.Next() {
+		var e models.Expense
+		err := rows.Scan(&e.ID, &e.UserID, &e.Name, &e.Amount, &e.Category, &e.Priority, &e.CreatedAt)
+		if err != nil {
+			continue
+		}
+		expenses = append(expenses, e)
+	}
+	return expenses, nil
 }

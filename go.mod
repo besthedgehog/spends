@@ -6,6 +6,7 @@ require gopkg.in/telebot.v4 v4.0.0-beta.7
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/go-echarts/go-echarts/v2 v2.6.7 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

@@ -1,12 +1,16 @@
 package bot
 
 import (
+	"bytes"
 	"fmt"
 	"log"
+	"spends/internal/charts"
+	"spends/internal/export"
 	"spends/internal/models"
 	"spends/internal/repository"
 	"strconv"
 	"strings"
+	"time"
 
 	tele "gopkg.in/telebot.v4"
 )
@@ -298,4 +302,161 @@ func (h *BotHandlers) HandleUndoExpense(c tele.Context) error {
 	)
 
 	return c.Send(cancelMessage, tele.ModeHTML)
+}
+
+// Добавь в конец файла handlers.go, в структуру BotHandlers
+
+// ===== ЭКСПОРТ CSV =====
+
+func (h *BotHandlers) HandleExportWeek(c tele.Context) error {
+	userID := c.Sender().ID
+
+	// Период: последние 7 дней
+	end := time.Now()
+	start := end.AddDate(0, 0, -7)
+
+	expenses, err := h.repo.GetExpensesByPeriod(userID, start, end)
+	if err != nil {
+		return c.Send("❌ Ошибка получения данных: " + err.Error())
+	}
+
+	if len(expenses) == 0 {
+		return c.Send("📭 За последнюю неделю трат нет")
+	}
+
+	csvData, err := export.ExportToCSV(expenses)
+	if err != nil {
+		return c.Send("❌ Ошибка создания CSV: " + err.Error())
+	}
+
+	// Отправляем файл
+	doc := &tele.Document{
+		File:     tele.FromReader(bytes.NewReader(csvData)),
+		FileName: fmt.Sprintf("expenses_week_%s.csv", time.Now().Format("2006-01-02")),
+		MIME:     "text/csv",
+	}
+
+	return c.Send(doc)
+}
+
+func (h *BotHandlers) HandleExportMonth(c tele.Context) error {
+	userID := c.Sender().ID
+
+	// Период: текущий месяц
+	now := time.Now()
+	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	end := now
+
+	expenses, err := h.repo.GetExpensesByPeriod(userID, start, end)
+	if err != nil {
+		return c.Send("❌ Ошибка получения данных: " + err.Error())
+	}
+
+	if len(expenses) == 0 {
+		return c.Send("📭 За этот месяц трат нет")
+	}
+
+	csvData, err := export.ExportToCSV(expenses)
+	if err != nil {
+		return c.Send("❌ Ошибка создания CSV: " + err.Error())
+	}
+
+	doc := &tele.Document{
+		File:     tele.FromReader(bytes.NewReader(csvData)),
+		FileName: fmt.Sprintf("expenses_month_%s.csv", time.Now().Format("2006-01")),
+		MIME:     "text/csv",
+	}
+
+	return c.Send(doc)
+}
+
+func (h *BotHandlers) HandleExportAll(c tele.Context) error {
+	userID := c.Sender().ID
+
+	expenses, err := h.repo.GetAllExpenses(userID)
+	if err != nil {
+		return c.Send("❌ Ошибка получения данных: " + err.Error())
+	}
+
+	if len(expenses) == 0 {
+		return c.Send("📭 У тебя пока нет трат")
+	}
+
+	csvData, err := export.ExportToCSV(expenses)
+	if err != nil {
+		return c.Send("❌ Ошибка создания CSV: " + err.Error())
+	}
+
+	doc := &tele.Document{
+		File:     tele.FromReader(bytes.NewReader(csvData)),
+		FileName: fmt.Sprintf("expenses_all_%s.csv", time.Now().Format("2006-01-02")),
+		MIME:     "text/csv",
+	}
+
+	return c.Send(doc)
+}
+
+// ===== ГРАФИКИ =====
+
+func (h *BotHandlers) HandleChartsMonth(c tele.Context) error {
+	userID := c.Sender().ID
+
+	c.Send("⏳ Создаю графики за месяц...")
+
+	// Получаем траты за месяц
+	now := time.Now()
+	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	end := now
+
+	expenses, err := h.repo.GetExpensesByPeriod(userID, start, end)
+	if err != nil {
+		return c.Send("❌ Ошибка получения данных: " + err.Error())
+	}
+
+	if len(expenses) == 0 {
+		return c.Send("📭 За этот месяц трат нет")
+	}
+
+	// Генерируем HTML с графиками
+	htmlData, err := charts.GenerateMonthCharts(expenses)
+	if err != nil {
+		return c.Send("❌ Ошибка создания графиков: " + err.Error())
+	}
+
+	// Отправляем файл
+	doc := &tele.Document{
+		File:     tele.FromReader(bytes.NewReader(htmlData)),
+		FileName: fmt.Sprintf("charts_month_%s.html", time.Now().Format("2006-01")),
+		MIME:     "text/html",
+	}
+
+	return c.Send(doc)
+}
+
+func (h *BotHandlers) HandleChartsAll(c tele.Context) error {
+	userID := c.Sender().ID
+
+	c.Send("⏳ Создаю графики за всё время...")
+
+	expenses, err := h.repo.GetAllExpenses(userID)
+	if err != nil {
+		return c.Send("❌ Ошибка получения данных: " + err.Error())
+	}
+
+	if len(expenses) == 0 {
+		return c.Send("📭 У тебя пока нет трат")
+	}
+
+	htmlData, err := charts.GenerateAllTimeCharts(expenses)
+	if err != nil {
+		return c.Send("❌ Ошибка создания графиков: " + err.Error())
+	}
+
+	doc := &tele.Document{
+		File:     tele.FromReader(bytes.NewReader(htmlData)),
+		FileName: fmt.Sprintf("charts_all_%s.html", time.Now().Format("2006-01-02")),
+		MIME:     "text/html",
+	}
+
+	return c.Send(doc)
 }

@@ -1,6 +1,9 @@
 package repository
 
-import "spends/internal/models"
+import (
+	"spends/internal/models"
+	"time"
+)
 
 // Repository - интерфейс для работы с данными
 type Repository interface {
@@ -14,6 +17,10 @@ type Repository interface {
 	GetExpensesByMonth(userID int64) ([]models.Expense, error)
 	DeleteExpense(expenseID int, userID int64) error   // Новый метод
 	GetExpense(expenseID int) (*models.Expense, error) // Новый метод
+
+	// Экспорт
+	GetExpensesByPeriod(userID int64, start, end time.Time) ([]models.Expense, error)
+	GetAllExpenses(userID int64) ([]models.Expense, error)
 
 	// Статистика
 	GetStatistics(userID int64) (*models.Statistics, error)

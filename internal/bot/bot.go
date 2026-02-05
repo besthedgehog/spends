@@ -43,6 +43,15 @@ func (b *Bot) registerHandlers() {
 	b.bot.Handle("/day", b.handlers.HandleDay)
 	b.bot.Handle("/month", b.handlers.HandleMonth)
 
+	// Экспорт CSV
+	b.bot.Handle("/export_week", b.handlers.HandleExportWeek)
+	b.bot.Handle("/export_month", b.handlers.HandleExportMonth)
+	b.bot.Handle("/export_all", b.handlers.HandleExportAll)
+
+	// Графики
+	b.bot.Handle("/charts_month", b.handlers.HandleChartsMonth)
+	b.bot.Handle("/charts_all", b.handlers.HandleChartsAll)
+
 	// Категории
 	for btnText, category := range GetCategoryHandlers() {
 		b.bot.Handle(btnText, b.handlers.HandleCategory(category))
