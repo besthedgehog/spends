@@ -1,7 +1,8 @@
-package main
+package repository
 
 import (
 	"database/sql"
+	"spends/internal/models"
 
 	_ "modernc.org/sqlite"
 )
@@ -66,8 +67,8 @@ func (r *SQLiteRepository) RegisterUser(telegramID int64, username, firstName st
 	return err
 }
 
-func (r *SQLiteRepository) GetUser(telegramID int64) (*User, error) {
-	user := &User{}
+func (r *SQLiteRepository) GetUser(telegramID int64) (*models.User, error) {
+	user := &models.User{}
 	err := r.db.QueryRow(`
 		SELECT id, telegram_id, username, first_name, created_at
 		FROM users WHERE telegram_id = ?
@@ -79,7 +80,7 @@ func (r *SQLiteRepository) GetUser(telegramID int64) (*User, error) {
 	return user, err
 }
 
-func (r *SQLiteRepository) GetExpensesByDate(userID int64, date string) ([]Expense, error) {
+func (r *SQLiteRepository) GetExpensesByDate(userID int64, date string) ([]models.Expense, error) {
 	rows, err := r.db.Query(`
 		SELECT id, user_id, name, amount, category, priority, created_at
 		FROM expenses
@@ -91,9 +92,9 @@ func (r *SQLiteRepository) GetExpensesByDate(userID int64, date string) ([]Expen
 	}
 	defer rows.Close()
 
-	var expenses []Expense
+	var expenses []models.Expense
 	for rows.Next() {
-		var e Expense
+		var e models.Expense
 		err := rows.Scan(&e.ID, &e.UserID, &e.Name, &e.Amount, &e.Category, &e.Priority, &e.CreatedAt)
 		if err != nil {
 			continue
@@ -103,7 +104,7 @@ func (r *SQLiteRepository) GetExpensesByDate(userID int64, date string) ([]Expen
 	return expenses, nil
 }
 
-func (r *SQLiteRepository) GetExpensesByMonth(userID int64) ([]Expense, error) {
+func (r *SQLiteRepository) GetExpensesByMonth(userID int64) ([]models.Expense, error) {
 	rows, err := r.db.Query(`
 		SELECT id, user_id, name, amount, category, priority, created_at
 		FROM expenses
@@ -115,9 +116,9 @@ func (r *SQLiteRepository) GetExpensesByMonth(userID int64) ([]Expense, error) {
 	}
 	defer rows.Close()
 
-	var expenses []Expense
+	var expenses []models.Expense
 	for rows.Next() {
-		var e Expense
+		var e models.Expense
 		err := rows.Scan(&e.ID, &e.UserID, &e.Name, &e.Amount, &e.Category, &e.Priority, &e.CreatedAt)
 		if err != nil {
 			continue
@@ -127,8 +128,8 @@ func (r *SQLiteRepository) GetExpensesByMonth(userID int64) ([]Expense, error) {
 	return expenses, nil
 }
 
-func (r *SQLiteRepository) GetStatistics(userID int64) (*Statistics, error) {
-	stats := &Statistics{}
+func (r *SQLiteRepository) GetStatistics(userID int64) (*models.Statistics, error) {
+	stats := &models.Statistics{}
 
 	// Общая статистика
 	err := r.db.QueryRow(`
@@ -229,7 +230,7 @@ func (r *SQLiteRepository) Close() error {
 // Обновляем функцию SaveExpense - теперь возвращает ID
 //
 // Для того, чтобы следующей кнопкной можно было отменить внесённую трату
-func (r *SQLiteRepository) SaveExpense(userID int64, state *UserState) (int, error) {
+func (r *SQLiteRepository) SaveExpense(userID int64, state *models.UserState) (int, error) {
 	result, err := r.db.Exec(`
 		INSERT INTO expenses (user_id, name, amount, category, priority)
 		VALUES (?, ?, ?, ?, ?)
@@ -253,8 +254,8 @@ func (r *SQLiteRepository) DeleteExpense(expenseID int, userID int64) error {
 }
 
 // Новый метод - получение одной траты
-func (r *SQLiteRepository) GetExpense(expenseID int) (*Expense, error) {
-	expense := &Expense{}
+func (r *SQLiteRepository) GetExpense(expenseID int) (*models.Expense, error) {
+	expense := &models.Expense{}
 	err := r.db.QueryRow(`
 		SELECT id, user_id, name, amount, category, priority, created_at
 		FROM expenses WHERE id = ?

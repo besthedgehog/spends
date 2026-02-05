@@ -1,8 +1,10 @@
-package main
+package bot
 
 import (
 	"fmt"
 	"log"
+	"spends/internal/models"
+	"spends/internal/repository"
 	"strconv"
 	"strings"
 
@@ -10,16 +12,16 @@ import (
 )
 
 type BotHandlers struct {
-	repo       Repository
+	repo       repository.Repository
 	keyboards  *Keyboards
-	userStates map[int64]*UserState
+	userStates map[int64]*models.UserState
 }
 
-func NewBotHandlers(repo Repository, keyboards *Keyboards) *BotHandlers {
+func NewBotHandlers(repo repository.Repository, keyboards *Keyboards) *BotHandlers {
 	return &BotHandlers{
 		repo:       repo,
 		keyboards:  keyboards,
-		userStates: make(map[int64]*UserState),
+		userStates: make(map[int64]*models.UserState),
 	}
 }
 
@@ -135,8 +137,8 @@ func (h *BotHandlers) HandleText(c tele.Context) error {
 
 	name := strings.Join(parts[:len(parts)-1], " ")
 
-	h.userStates[userID] = &UserState{
-		State:  StateWaitingCategory,
+	h.userStates[userID] = &models.UserState{
+		State:  models.StateWaitingCategory,
 		Name:   name,
 		Amount: amount,
 	}
@@ -153,12 +155,12 @@ func (h *BotHandlers) HandleCategory(category string) tele.HandlerFunc {
 		userID := c.Sender().ID
 		state, exists := h.userStates[userID]
 
-		if !exists || state.State != StateWaitingCategory {
+		if !exists || state.State != models.StateWaitingCategory {
 			return c.Send("⚠️ Сначала отправь трату в формате: Название Сумма")
 		}
 
 		state.Category = category
-		state.State = StateWaitingPriority
+		state.State = models.StateWaitingPriority
 
 		return c.Send(
 			fmt.Sprintf("✅ Категория: <b>%s</b>\n\nВыбери приоритет:", category),
@@ -173,7 +175,7 @@ func (h *BotHandlers) HandlePriority(priority int) tele.HandlerFunc {
 		userID := c.Sender().ID
 		state, exists := h.userStates[userID]
 
-		if !exists || state.State != StateWaitingPriority {
+		if !exists || state.State != models.StateWaitingPriority {
 			return c.Send("⚠️ Сначала выбери категорию")
 		}
 

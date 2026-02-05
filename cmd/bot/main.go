@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"os"
+	"spends/internal/bot"
+	"spends/internal/repository"
 
 	"github.com/joho/godotenv"
 )
@@ -20,7 +22,7 @@ func main() {
 	}
 
 	// Инициализируем репозиторий
-	repo, err := NewSQLiteRepository("./expenses.db")
+	repo, err := repository.NewSQLiteRepository("./expenses.db")
 	if err != nil {
 		log.Fatal("❌ Ошибка инициализации БД:", err)
 	}
@@ -29,7 +31,7 @@ func main() {
 	log.Println("✅ База данных инициализирована")
 
 	// Создаём и запускаем бота
-	bot, err := NewBot(token, repo)
+	bot, err := bot.NewBot(token, repo)
 	if err != nil {
 		log.Fatal("❌ Ошибка создания бота:", err)
 	}

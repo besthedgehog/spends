@@ -1,7 +1,8 @@
-package main
+package bot
 
 import (
 	"log"
+	"spends/internal/repository"
 	"time"
 
 	tele "gopkg.in/telebot.v4"
@@ -12,7 +13,7 @@ type Bot struct {
 	handlers *BotHandlers
 }
 
-func NewBot(token string, repo Repository) (*Bot, error) {
+func NewBot(token string, repo repository.Repository) (*Bot, error) {
 	pref := tele.Settings{
 		Token:  token,
 		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
