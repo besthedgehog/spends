@@ -2,14 +2,14 @@ version: "3.8"
 
 services:
   spends-bot:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
     container_name: spends-bot
     restart: unless-stopped
     environment:
       - TOKEN=${TOKEN}
     volumes:
-      # Mount the data directory where the database will be stored
       - ./data:/data
-    # If you want to use .env file, uncomment the next line
     env_file:
       - .env
