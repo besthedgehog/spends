@@ -4,7 +4,7 @@ services:
   spends-bot:
     build:
       context: .
-      dockerfile: Dockerfile.simple
+      dockerfile: Dockerfile
     container_name: spends-bot
     restart: unless-stopped
     environment:

@@ -25,14 +25,8 @@ type Repository interface {
 	// Статистика
 	GetStatistics(userID int64) (*models.Statistics, error)
 	GetDayTotal(userID int64) (float64, int, error)
-	GetMonthCategoryStats(userID int64) (map[string]CategoryStats, float64, int, error)
+	GetMonthCategoryStats(userID int64) (map[string]models.CategoryStats, float64, int, error)
 
 	// Управление
 	Close() error
-}
-
-type CategoryStats struct {
-	Category string
-	Amount   float64
-	Count    int
 }

@@ -12,18 +12,18 @@ import (
 	"spends/internal/charts"
 	"spends/internal/export"
 	"spends/internal/models"
-	"spends/internal/repository"
+	"spends/internal/service"
 
 	tele "gopkg.in/telebot.v4"
 )
 
 type BotHandlers struct {
-	repo       repository.Repository
+	repo       service.ExpenseService
 	keyboards  *Keyboards
 	userStates map[int64]*models.UserState
 }
 
-func NewBotHandlers(repo repository.Repository, keyboards *Keyboards) *BotHandlers {
+func NewBotHandlers(repo service.ExpenseService, keyboards *Keyboards) *BotHandlers {
 	return &BotHandlers{
 		repo:       repo,
 		keyboards:  keyboards,

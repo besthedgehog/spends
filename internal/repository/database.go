@@ -185,7 +185,7 @@ func (r *SQLiteRepository) GetDayTotal(userID int64) (float64, int, error) {
 	return total, count, err
 }
 
-func (r *SQLiteRepository) GetMonthCategoryStats(userID int64) (map[string]CategoryStats, float64, int, error) {
+func (r *SQLiteRepository) GetMonthCategoryStats(userID int64) (map[string]models.CategoryStats, float64, int, error) {
 	// Общая сумма за месяц
 	var monthTotal float64
 	var count int
@@ -211,9 +211,9 @@ func (r *SQLiteRepository) GetMonthCategoryStats(userID int64) (map[string]Categ
 	}
 	defer rows.Close()
 
-	categoryStats := make(map[string]CategoryStats)
+	categoryStats := make(map[string]models.CategoryStats)
 	for rows.Next() {
-		var cs CategoryStats
+		var cs models.CategoryStats
 		err := rows.Scan(&cs.Category, &cs.Amount, &cs.Count)
 		if err != nil {
 			continue

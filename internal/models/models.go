@@ -41,3 +41,9 @@ type Statistics struct {
 	TotalSum   float64
 	Count      int
 }
+
+type CategoryStats struct {
+	Category string
+	Amount   float64
+	Count    int
+}
