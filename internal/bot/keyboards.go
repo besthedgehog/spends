@@ -33,6 +33,9 @@ func NewKeyboards() *Keyboards {
 	btnTobacco := categoryMenu.Text("🚬 Табак")
 	btnSubs := categoryMenu.Text("📱 Подписки")
 	btnHouse := categoryMenu.Text("🏠 Дом")
+	btnClothes := categoryMenu.Text("💃 Одежда")
+	btnMakeUp := categoryMenu.Text("💅 Косметика")
+	btnPresents := categoryMenu.Text("🎁 Подарки")
 
 	categoryMenu.Reply(
 		categoryMenu.Row(btnSnacks, btnProducts),
@@ -42,6 +45,8 @@ func NewKeyboards() *Keyboards {
 		categoryMenu.Row(btnAlcohol, btnTobacco),
 		categoryMenu.Row(btnSubs, btnTransport),
 		categoryMenu.Row(btnHealth, btnHouse),
+		categoryMenu.Row(btnClothes, btnMakeUp),
+		categoryMenu.Row(btnPresents),
 	)
 
 	// Клавиатура приоритетов
@@ -155,6 +160,9 @@ func GetCategoryHandlers() map[string]string {
 		"📱 Подписки":    "подписки",
 		"🩺 Здоровье":    "здоровье",
 		"🏠 Дом":         "дом",
+		"💃 Одежда":      "одежда",
+		"💅 Косметика":   "косметика",
+		"🎁 Подарки":     "подарки",
 	}
 }
 
