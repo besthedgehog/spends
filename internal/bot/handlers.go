@@ -523,18 +523,6 @@ func (h *BotHandlers) HandleExportAll(c tele.Context) error {
 // GetAllCharts sends all charts to the user
 func (h *BotHandlers) GetAllCharts(c tele.Context) error {
 
-	// ChartsNames := struct {
-	// 	CumulativeChart string
-	// 	CategoryPie     string
-	// 	PriorityPie     string
-	// 	DailyBarChart   string
-	// }{
-	// 	CumulativeChart: "CumulativeChart.png",
-	// 	CategoryPie:     "CategoryPie.png",
-	// 	PriorityPie:     "PriorityPie.png",
-	// 	DailyBarChart:   "DailyBarChart.png",
-	// }
-
 	userID := c.Sender().ID
 
 	expenses, err := h.repo.GetAllExpenses(userID)
@@ -590,22 +578,6 @@ func (h *BotHandlers) GetAllCharts(c tele.Context) error {
 			return c.Send("Произошла ошибка")
 		}
 
-		// img1 := charts.CreateCumulativeChart(expenses)
-		// img2 := charts.CreateCategoryPie(expenses)
-		// img3 := charts.CreatePriorityPie(expenses)
-		// img4 := charts.CreateDailyBarChart(expenses)
-		// img5 := charts.CreateScatter(expenses)
-
-		// charts.RenderPNG(ChartsNames.CumulativeChart, img1)
-		// charts.RenderPNG(ChartsNames.CategoryPie, img2)
-		// charts.RenderPNG(ChartsNames.PriorityPie, img3)
-		// charts.RenderPNG(ChartsNames.DailyBarChart, img4)
-
-		// c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img1)), Caption: "📈 Накопление"})
-		// c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img2)), Caption: "🥧 Категории"})
-		// c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img3)), Caption: "🎯 Приоритеты"})
-		// c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img4)), Caption: "📊 По дням"})
-
 		c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img1)), Caption: "📊 По дням"})
 		c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img2)), Caption: "🎯 Приоритеты"})
 		c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img3)), Caption: "📊 Категории"})
@@ -613,13 +585,6 @@ func (h *BotHandlers) GetAllCharts(c tele.Context) error {
 		c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img5)), Caption: "🎆 Точечная"})
 		c.Send(&tele.Photo{File: tele.FromReader(bytes.NewReader(img6)), Caption: "🥧 По дням"})
 	}
-
-	// defer func() {
-	// 	os.Remove(ChartsNames.CumulativeChart)
-	// 	os.Remove(ChartsNames.CategoryPie)
-	// 	os.Remove(ChartsNames.PriorityPie)
-	// 	os.Remove(ChartsNames.DailyBarChart)
-	// }()
 
 	return c.Send("Отправь следующую трату", h.keyboards.Menu)
 }
