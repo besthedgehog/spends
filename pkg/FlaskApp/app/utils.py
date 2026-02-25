@@ -13,7 +13,7 @@ def parse_data_by_day(data: list[dict]):
         totals[date] += item["Amount"]
 
     dates = sorted(totals.keys())
-    labels = [d.strftime("%d.%m") for d in dates]
+    labels = [d.strftime("%d") for d in dates]
     values = [totals[d] for d in dates]
 
     return labels, values

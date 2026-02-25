@@ -78,9 +78,17 @@ def plot_bars(data: list[dict]):
     plt.style.use("cyberpunk")
     fig, ax = plt.subplots(figsize=(6, 4))
 
+    # ФИКС: Сортируем по приоритету 0,1,2
+    priorities_dict = dict(zip(labels, values))
+    sorted_priorities = sorted(priorities_dict.items(), key=lambda x: int(x[0]))
+    labels_sorted = [x[0] for x in sorted_priorities]
+    values_sorted = [x[1] for x in sorted_priorities]
+
     colors = ["C0", "C2", "C1"]
 
-    bars = ax.bar(labels, values, color=colors, zorder=2)
+    bars = ax.bar(
+        labels_sorted, values_sorted, color=colors[: len(labels_sorted)], zorder=2
+    )
 
     ax.set_title("Expenses by priority")
 
@@ -98,7 +106,7 @@ def plot_by_category(data: list[dict]):
     """
     categories, values = parse_data_for_category(data)
     plt.style.use("cyberpunk")
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(10, 5))
 
     colors = [f"C{i}" for i in range(len(categories))]
 
@@ -111,6 +119,9 @@ def plot_by_category(data: list[dict]):
 
     ax.set_title("Expenses by category")
     ax.set_ylabel("Amount")
+
+    # ФИКС: Поворот подписей на 45° + выравнивание
+    plt.xticks(rotation=45, ha="right")
 
     mplcyberpunk.add_bar_gradient(bars=bars)
     mplcyberpunk.add_glow_effects()
