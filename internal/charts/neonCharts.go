@@ -7,7 +7,9 @@ import (
 	"net/http"
 )
 
-const url = "http://localhost:5005/plot"
+// const url = "http://localhost:5005/plot"
+
+const url = "http://flask-charts:5005/plot"
 
 // SendDataForPlot sends data for plotting to the server
 // and returnes the image and the error

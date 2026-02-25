@@ -13,3 +13,23 @@ services:
       - ./data:/data
     env_file:
       - .env
+    depends_on:
+      - flask-charts # ← Запускать после Flask
+    networks:
+      - spends-network
+
+  # Flask микросервис
+  flask-charts:
+    build:
+      context: ./pkg/FlaskApp
+      dockerfile: Dockerfile
+    container_name: flask-charts
+    restart: unless-stopped
+    ports:
+      - "5005:5005"
+    networks:
+      - spends-network
+
+networks:
+  spends-network:
+    driver: bridge
